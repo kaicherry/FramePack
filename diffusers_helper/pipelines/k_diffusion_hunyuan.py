@@ -58,7 +58,7 @@ def sample_hunyuan(
     if batch_size is None:
         batch_size = int(prompt_embeds.shape[0])
 
-    latents = torch.randn((batch_size, 16, (frames + 3) // 4, height // 8, width // 8), generator=generator, device=generator.device).to(device=device, dtype=torch.float32)
+    latents = torch.randn((batch_size, 16, (frames + 3) // 4, height // 8, width // 8), generator=generator, device=generator.device).to(device=device, dtype=torch.float16)
 
     B, C, T, H, W = latents.shape
     seq_length = T * H * W // 4
@@ -74,8 +74,8 @@ def sample_hunyuan(
 
     if initial_latent is not None:
         sigmas = sigmas * strength
-        first_sigma = sigmas[0].to(device=device, dtype=torch.float32)
-        initial_latent = initial_latent.to(device=device, dtype=torch.float32)
+        first_sigma = sigmas[0].to(device=device, dtype=torch.float16)
+        initial_latent = initial_latent.to(device=device, dtype=torch.float16)
         latents = initial_latent.float() * (1.0 - first_sigma) + latents.float() * first_sigma
 
     if concat_latent is not None:
