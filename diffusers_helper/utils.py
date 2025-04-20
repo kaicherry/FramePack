@@ -120,7 +120,7 @@ def get_active_parameters(m):
     return {k: v for k, v in m.named_parameters() if v.requires_grad}
 
 
-def cast_training_params(m, dtype=torch.float32):
+def cast_training_params(m, dtype=torch.float16):
     result = {}
     for n, param in m.named_parameters():
         if param.requires_grad:
