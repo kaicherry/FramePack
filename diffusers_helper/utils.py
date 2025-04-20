@@ -42,22 +42,14 @@ def d_resize(x, y):
     return y
 
 
-def resize_and_center_crop(image, target_width, target_height):
-    if target_height == image.shape[0] and target_width == image.shape[1]:
-        return image
-
-    pil_image = Image.fromarray(image)
-    original_width, original_height = pil_image.size
-    scale_factor = max(target_width / original_width, target_height / original_height)
-    resized_width = int(round(original_width * scale_factor))
-    resized_height = int(round(original_height * scale_factor))
-    resized_image = pil_image.resize((resized_width, resized_height), Image.LANCZOS)
-    left = (resized_width - target_width) / 2
-    top = (resized_height - target_height) / 2
-    right = (resized_width + target_width) / 2
-    bottom = (resized_height + target_height) / 2
-    cropped_image = resized_image.crop((left, top, right, bottom))
-    return np.array(cropped_image)
+def resize_and_center_crop_fast(image, target_width, target_height):
+    h, w = image.shape[:2]
+    scale = max(target_width / w, target_height / h)
+    resized = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LANCZOS4)
+    
+    top = (resized.shape[0] - target_height) // 2
+    left = (resized.shape[1] - target_width) // 2
+    return resized[top:top + target_height, left:left + target_width]
 
 
 def resize_and_center_crop_pytorch(image, target_width, target_height):
@@ -103,11 +95,10 @@ def just_crop(image, w, h):
 
 
 def write_to_json(data, file_path):
-    temp_file_path = file_path + ".tmp"
-    with open(temp_file_path, 'wt', encoding='utf-8') as temp_file:
-        json.dump(data, temp_file, indent=4)
-    os.replace(temp_file_path, file_path)
-    return
+    tmp_path = file_path + ".tmp"
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, separators=(',', ':'))  # no pretty-printing for speed
+    os.replace(tmp_path, file_path)
 
 
 def read_from_json(file_path):
@@ -266,16 +257,18 @@ def soft_append_bcthw(history, current, overlap=0):
 def save_bcthw_as_mp4(x, output_filename, fps=10, crf=0):
     b, c, t, h, w = x.shape
 
-    per_row = b
     for p in [6, 5, 4, 3, 2]:
         if b % p == 0:
             per_row = p
             break
+    else:
+        per_row = b
 
-    os.makedirs(os.path.dirname(os.path.abspath(os.path.realpath(output_filename))), exist_ok=True)
-    x = torch.clamp(x.float(), -1., 1.) * 127.5 + 127.5
-    x = x.detach().cpu().to(torch.uint8)
+    x = torch.clamp(x, -1., 1.) * 127.5 + 127.5
+    x = x.byte().cpu()  # avoid extra detach and to()
     x = einops.rearrange(x, '(m n) c t h w -> t (m h) (n w) c', n=per_row)
+
+    os.makedirs(os.path.dirname(output_filename), exist_ok=True)
     torchvision.io.write_video(output_filename, x, fps=fps, video_codec='libx264', options={'crf': str(int(crf))})
     return x
 
