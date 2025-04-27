@@ -429,16 +429,16 @@ class HunyuanVideoRotaryPosEmbed(nn.Module):
     @torch.no_grad()
     def get_frequency(self, dim, pos):
         T, H, W = pos.shape
-        freqs = 1.0 / (self.theta ** (torch.arange(0, dim, 2, dtype=torch.float32, device=pos.device)[: (dim // 2)] / dim))
+        freqs = 1.0 / (self.theta ** (torch.arange(0, dim, 2, dtype=torch.float16, device=pos.device)[: (dim // 2)] / dim))
         freqs = torch.outer(freqs, pos.reshape(-1)).unflatten(-1, (T, H, W)).repeat_interleave(2, dim=0)
         return freqs.cos(), freqs.sin()
 
     @torch.no_grad()
     def forward_inner(self, frame_indices, height, width, device):
         GT, GY, GX = torch.meshgrid(
-            frame_indices.to(device=device, dtype=torch.float32),
-            torch.arange(0, height, device=device, dtype=torch.float32),
-            torch.arange(0, width, device=device, dtype=torch.float32),
+            frame_indices.to(device=device, dtype=torch.float16),
+            torch.arange(0, height, device=device, dtype=torch.float16),
+            torch.arange(0, width, device=device, dtype=torch.float16),
             indexing="ij"
         )
 
@@ -1018,9 +1018,9 @@ class HunyuanVideoTransformer3DModelPacked(ModelMixin, ConfigMixin, PeftAdapterM
         hidden_states = hidden_states[:, -original_context_length:, :]
 
         if self.high_quality_fp32_output_for_inference:
-            hidden_states = hidden_states.to(dtype=torch.float32)
-            if self.proj_out.weight.dtype != torch.float32:
-                self.proj_out.to(dtype=torch.float32)
+            hidden_states = hidden_states.to(dtype=torch.float16)
+            if self.proj_out.weight.dtype != torch.float16:
+                self.proj_out.to(dtype=torch.float16)
 
         hidden_states = self.gradient_checkpointing_method(self.proj_out, hidden_states)
 
